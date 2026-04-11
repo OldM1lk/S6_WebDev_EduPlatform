@@ -18,7 +18,7 @@ export class User {
   role: string;
 
   @Prop({ default: [] })
-  enrolledCourses: string[]; // массив ID курсов, на которые записан студент
+  enrolledCourses: string[];
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
