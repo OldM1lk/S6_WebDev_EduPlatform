@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
+import { CoursesModule } from './courses/courses.module';
 
 @Module({
   imports: [
@@ -10,6 +12,8 @@ import { AuthModule } from './auth/auth.module';
       process.env.MONGODB_URI || 'mongodb://localhost:27017/eduplatform',
     ),
     AuthModule,
+    UsersModule,
+    CoursesModule,
   ],
 })
 export class MainApiModule {}
