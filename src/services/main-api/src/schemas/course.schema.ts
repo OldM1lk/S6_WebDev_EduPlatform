@@ -15,16 +15,22 @@ export class Course {
   teacherId: Types.ObjectId;
 
   @Prop({
-    coverImage: {
-      url: String,
+    type: {
+      originalUrl: { type: String, default: '' },
+      processedUrl: { type: String, default: '' },
       status: {
         type: String,
-        enum: ['processing', 'ready', 'failed'],
-        default: 'processing',
+        enum: ['none', 'processing', 'ready'],
+        default: 'none',
       },
     },
+    default: {},
   })
-  coverImage: { url: string; status: string };
+  coverImage: {
+    originalUrl: string;
+    processedUrl: string;
+    status: string;
+  };
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Lesson' }], default: [] })
   lessons: Types.ObjectId[];
