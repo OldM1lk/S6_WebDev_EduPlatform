@@ -15,19 +15,25 @@ export class Lesson {
   courseId: Types.ObjectId;
 
   @Prop({
-    image: {
-      url: String,
+    type: {
+      originalUrl: { type: String, default: '' },
+      processedUrl: { type: String, default: '' },
       status: {
         type: String,
-        enum: ['processing', 'ready', 'failed'],
-        default: 'processing',
+        enum: ['none', 'processing', 'ready'],
+        default: 'none',
       },
     },
+    default: {},
   })
-  image: { url: string; status: string };
+  image: {
+    originalUrl: string;
+    processedUrl: string;
+    status: string;
+  };
 
-  @Prop()
-  sequenceNumber: number;
+  @Prop({ type: Types.ObjectId, ref: 'Course', required: true })
+  course: Types.ObjectId;
 }
 
 export const LessonSchema = SchemaFactory.createForClass(Lesson);
