@@ -1,5 +1,6 @@
 import {
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -8,6 +9,8 @@ import { Model } from 'mongoose';
 import { Course, CourseDocument } from './schemas/course.schema';
 import { Lesson, LessonDocument } from './schemas/lesson.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 
 @Injectable()
 export class CoursesService {
@@ -15,13 +18,49 @@ export class CoursesService {
     @InjectModel(Course.name) private courseModel: Model<CourseDocument>,
     @InjectModel(Lesson.name) private lessonModel: Model<LessonDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
+  private async clearCoursesListCache(): Promise<void> {
+    await this.cacheManager.del('all_courses');
+  }
+
+  private async clearCourseCache(courseId: string): Promise<void> {
+    await this.cacheManager.del(`course_${courseId}`);
+  }
+
+  private async invalidateCache(courseId?: string): Promise<void> {
+    await this.clearCoursesListCache();
+    if (courseId) {
+      await this.clearCourseCache(courseId);
+    }
+  }
+
   async findAll(): Promise<CourseDocument[]> {
-    return this.courseModel.find().populate('teacher', 'name email').exec();
+    const cachedCourses =
+      await this.cacheManager.get<CourseDocument[]>('all_courses');
+    if (cachedCourses) {
+      return cachedCourses;
+    }
+
+    const courses = await this.courseModel
+      .find()
+      .populate('teacher', 'name email')
+      .exec();
+
+    await this.cacheManager.set('all_courses', courses, 60 * 5);
+
+    return courses;
   }
 
   async findById(courseId: string): Promise<CourseDocument> {
+    const cachedCourse = await this.cacheManager.get<CourseDocument>(
+      `course_${courseId}`,
+    );
+    if (cachedCourse) {
+      return cachedCourse;
+    }
+
     const course = await this.courseModel
       .findById(courseId)
       .populate('teacher', 'name email')
@@ -31,6 +70,9 @@ export class CoursesService {
     if (!course) {
       throw new NotFoundException('Курс не найден');
     }
+
+    await this.cacheManager.set(`course_${courseId}`, course, 60 * 5);
+
     return course;
   }
 
@@ -45,7 +87,11 @@ export class CoursesService {
       teacher: teacherId,
       lessons: [],
     });
-    return course.save();
+    const savedCourse = await course.save();
+
+    await this.clearCoursesListCache();
+
+    return savedCourse;
   }
 
   async update(
@@ -64,7 +110,11 @@ export class CoursesService {
 
     if (updateData.title) course.title = updateData.title;
     if (updateData.description) course.description = updateData.description;
-    return course.save();
+    const updatedCourse = await course.save();
+
+    await this.invalidateCache(courseId);
+
+    return updatedCourse;
   }
 
   async delete(courseId: string, userId: string): Promise<void> {
@@ -79,6 +129,8 @@ export class CoursesService {
 
     await this.lessonModel.deleteMany({ course: courseId });
     await this.courseModel.findByIdAndDelete(courseId);
+
+    await this.invalidateCache(courseId);
   }
 
   async enroll(courseId: string, studentId: string): Promise<CourseDocument> {
@@ -102,9 +154,12 @@ export class CoursesService {
     student.enrolledCourses.push(course._id);
     await student.save();
 
-    // Увеличиваем счётчик записавшихся
     course.enrolledStudentsCount += 1;
-    return course.save();
+    const updatedCourse = await course.save();
+
+    await this.invalidateCache(courseId);
+
+    return updatedCourse;
   }
 
   async findLessonsByCourse(courseId: string): Promise<LessonDocument[]> {
@@ -142,6 +197,8 @@ export class CoursesService {
     course.lessons.push(savedLesson._id);
     await course.save();
 
+    await this.invalidateCache(courseId);
+
     return savedLesson;
   }
 
@@ -168,7 +225,11 @@ export class CoursesService {
 
     if (updateData.title) lesson.title = updateData.title;
     if (updateData.content) lesson.content = updateData.content;
-    return lesson.save();
+    const updatedLesson = await lesson.save();
+
+    await this.invalidateCache(course._id.toString());
+
+    return updatedLesson;
   }
 
   async deleteLesson(lessonId: string, userId: string): Promise<void> {
@@ -188,7 +249,8 @@ export class CoursesService {
 
     course.lessons = course.lessons.filter((id) => id.toString() !== lessonId);
     await course.save();
-
     await this.lessonModel.findByIdAndDelete(lessonId);
+
+    await this.invalidateCache(course._id.toString());
   }
 }
