@@ -58,7 +58,7 @@ export class CoursesService {
       throw new NotFoundException('Курс не найден');
     }
 
-    if (course.teacherId.toString() !== userId) {
+    if (course.teacher.toString() !== userId) {
       throw new ForbiddenException('Вы не являетесь владельцем этого курса');
     }
 
@@ -73,7 +73,7 @@ export class CoursesService {
       throw new NotFoundException('Курс не найден');
     }
 
-    if (course.teacherId.toString() !== userId) {
+    if (course.teacher.toString() !== userId) {
       throw new ForbiddenException('Вы не являетесь владельцем этого курса');
     }
 
@@ -88,6 +88,9 @@ export class CoursesService {
     }
 
     const student = await this.userModel.findById(studentId);
+    if (!student) {
+      throw new NotFoundException('Студент не найден');
+    }
 
     const alreadyEnrolled = student.enrolledCourses.some(
       (id) => id.toString() === courseId,
@@ -123,7 +126,7 @@ export class CoursesService {
       throw new NotFoundException('Курс не найден');
     }
 
-    if (course.teacherId.toString() !== userId) {
+    if (course.teacher.toString() !== userId) {
       throw new ForbiddenException(
         'Только владелец курса может добавлять уроки',
       );
@@ -153,7 +156,11 @@ export class CoursesService {
     }
 
     const course = await this.courseModel.findById(lesson.course);
-    if (course.teacherId.toString() !== userId) {
+    if (!course) {
+      throw new NotFoundException('Курс не найден');
+    }
+
+    if (course.teacher.toString() !== userId) {
       throw new ForbiddenException(
         'Только владелец курса может обновлять уроки',
       );
@@ -171,7 +178,11 @@ export class CoursesService {
     }
 
     const course = await this.courseModel.findById(lesson.course);
-    if (course.teacherId.toString() !== userId) {
+    if (!course) {
+      throw new NotFoundException('Курс не найден');
+    }
+
+    if (course.teacher.toString() !== userId) {
       throw new ForbiddenException('Только владелец курса может удалять уроки');
     }
 

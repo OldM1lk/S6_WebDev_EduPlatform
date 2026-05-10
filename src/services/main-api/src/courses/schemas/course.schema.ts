@@ -12,7 +12,7 @@ export class Course {
   description: string;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  teacherId: Types.ObjectId;
+  teacher: Types.ObjectId;
 
   @Prop({
     type: {

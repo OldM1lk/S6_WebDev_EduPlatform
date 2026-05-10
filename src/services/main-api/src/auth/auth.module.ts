@@ -11,6 +11,7 @@ import { RolesGuard } from './roles.guard';
 @Module({
   imports: [
     UsersModule,
+    PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({

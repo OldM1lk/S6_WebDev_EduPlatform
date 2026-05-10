@@ -11,9 +11,6 @@ export class Lesson {
   @Prop()
   content: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'Course', required: true })
-  courseId: Types.ObjectId;
-
   @Prop({
     type: {
       originalUrl: { type: String, default: '' },
