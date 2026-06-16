@@ -173,10 +173,7 @@ export class CoursesController {
   }
 
   @Get('images/:fileName')
-  async getImage(
-    @Param('fileName') fileName: string,
-    @Res() res: express.Response,
-  ) {
+  getImage(@Param('fileName') fileName: string, @Res() res: express.Response) {
     const filePath = path.join(process.cwd(), 'uploads', 'processed', fileName);
 
     if (!fs.existsSync(filePath)) {
