@@ -5,7 +5,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { CoursesModule } from './courses/courses.module';
 import { RedisModule } from './redis/redis.module';
-import { KafkaModule } from '../kafka/kafka.module';
+import { KafkaModule } from './kafka/kafka.module';
 
 @Module({
   imports: [

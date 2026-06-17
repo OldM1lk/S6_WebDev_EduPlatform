@@ -17,7 +17,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { CoursesService } from './courses.service';
 import { Roles } from '../common/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
-import { KafkaProducer } from '../../kafka/kafka.producer';
+import { KafkaProducer } from '../kafka/kafka.producer';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import express from 'express';
