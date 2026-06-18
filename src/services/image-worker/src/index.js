@@ -53,6 +53,7 @@ const kafka = new Kafka({
 });
 
 const consumer = kafka.consumer({ groupId: 'image-processor' });
+const producer = kafka.producer();
 
 async function updateImageStatus(imageId, type, processedPath) {
   try {
@@ -78,6 +79,9 @@ async function start() {
     await mongoose.connect(MONGO_URI);
     console.log('Image Worker подключён к MongoDB');
 
+    await producer.connect();
+    console.log('Kafka producer подключён');
+
     await consumer.connect();
     await consumer.subscribe({ topic: 'image.uploaded', fromBeginning: false });
     console.log('Image Worker подписан на топик image.uploaded');
@@ -94,7 +98,25 @@ async function start() {
           );
 
           await updateImageStatus(data.imageId, data.type, processedPath);
-          console.log('Обработка завершена:', data.fileName);
+
+          await producer.send({
+            topic: 'image.processed',
+            messages: [
+              {
+                key: data.imageId,
+                value: JSON.stringify({
+                  imageId: data.imageId,
+                  type: data.type,
+                  processedUrl: processedPath,
+                  status: 'ready',
+                }),
+              },
+            ],
+          });
+          console.log(
+            'Подтверждение отправлено в image.processed:',
+            data.fileName,
+          );
         } catch (error) {
           console.error('Ошибка обработки:', error);
         }
