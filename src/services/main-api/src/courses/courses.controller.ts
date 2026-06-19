@@ -178,6 +178,59 @@ export class CoursesController {
     };
   }
 
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('teacher')
+  @Post('lessons/:lessonId/image')
+  @UseInterceptors(
+    FileInterceptor('image', {
+      storage: diskStorage({
+        destination: (req, file, cb) => {
+          const uploadPath = path.join(process.cwd(), 'uploads', 'original');
+          if (!fs.existsSync(uploadPath)) {
+            fs.mkdirSync(uploadPath, { recursive: true });
+          }
+          cb(null, uploadPath);
+        },
+        filename: (req, file, cb) => {
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
+          cb(null, uniqueSuffix + path.extname(file.originalname));
+        },
+      }),
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: (req, file, cb) => {
+        if (!file.mimetype.match(/^image\//)) {
+          return cb(new Error('Только изображения'), false);
+        }
+        cb(null, true);
+      },
+    }),
+  )
+  async uploadLessonImage(
+    @Param('lessonId') lessonId: string,
+    @Req() req,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const lesson = await this.coursesService.uploadLessonImage(
+      lessonId,
+      req.user.userId,
+      file.path,
+      file.filename,
+    );
+
+    await this.kafkaProducer.sendImageUploaded({
+      imageId: lesson._id.toString(),
+      originalPath: file.path,
+      fileName: file.filename,
+      type: 'lesson_image',
+    });
+
+    return {
+      message: 'Изображение загружено и отправлено на обработку',
+      lessonId: lesson._id,
+    };
+  }
+
   @Get('images/:fileName')
   getImage(@Param('fileName') fileName: string, @Res() res: express.Response) {
     const filePath = path.join(process.cwd(), 'uploads', 'processed', fileName);

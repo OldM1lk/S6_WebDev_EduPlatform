@@ -253,4 +253,38 @@ export class CoursesService {
 
     await this.invalidateCache(course._id.toString());
   }
+
+  async uploadLessonImage(
+    lessonId: string,
+    userId: string,
+    filePath: string,
+    fileName: string,
+  ): Promise<LessonDocument> {
+    const lesson = await this.lessonModel.findById(lessonId);
+    if (!lesson) {
+      throw new NotFoundException('Урок не найден');
+    }
+
+    const course = await this.courseModel.findById(lesson.course);
+    if (!course) {
+      throw new NotFoundException('Курс не найден');
+    }
+
+    if (course.teacher.toString() !== userId) {
+      throw new ForbiddenException(
+        'Только владелец курса может загружать изображения для уроков',
+      );
+    }
+
+    lesson.image = {
+      originalUrl: filePath,
+      processedUrl: '',
+      status: 'processing',
+    };
+    await lesson.save();
+
+    await this.invalidateCache(course._id.toString());
+
+    return lesson;
+  }
 }
