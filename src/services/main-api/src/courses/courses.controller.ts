@@ -123,7 +123,13 @@ export class CoursesController {
   @UseInterceptors(
     FileInterceptor('image', {
       storage: diskStorage({
-        destination: './uploads/original',
+        destination: (req, file, cb) => {
+          const uploadPath = path.join(process.cwd(), 'uploads', 'original');
+          if (!fs.existsSync(uploadPath)) {
+            fs.mkdirSync(uploadPath, { recursive: true });
+          }
+          cb(null, uploadPath);
+        },
         filename: (req, file, cb) => {
           const uniqueSuffix =
             Date.now() + '-' + Math.round(Math.random() * 1e9);
@@ -145,7 +151,7 @@ export class CoursesController {
     @UploadedFile() file: Express.Multer.File,
   ) {
     const course = await this.coursesService.findById(courseId);
-    if (course.teacher._id.toString() === req.user.userId) {
+    if (course.teacher._id.toString() !== req.user.userId) {
       fs.unlinkSync(file.path);
       throw new ForbiddenException(
         'Только владелец курса может загружать обложку',
@@ -175,6 +181,8 @@ export class CoursesController {
   @Get('images/:fileName')
   getImage(@Param('fileName') fileName: string, @Res() res: express.Response) {
     const filePath = path.join(process.cwd(), 'uploads', 'processed', fileName);
+
+    console.log('Поиск изображения:', filePath);
 
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ message: 'Изображение не найдено' });

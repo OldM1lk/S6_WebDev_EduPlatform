@@ -3,57 +3,92 @@ const path = require('path');
 const fs = require('fs');
 
 async function processImage(originalPath, outputFileName) {
-  const outputPath = path.join(
+  let normalizedPath = originalPath.replace(/\\/g, '/');
+
+  if (!path.isAbsolute(normalizedPath)) {
+    normalizedPath = path.join(process.cwd(), '..', '..', normalizedPath);
+  }
+
+  const processedDir = path.join(
     process.cwd(),
+    '..',
+    '..',
+    '..',
     'uploads',
     'processed',
-    outputFileName,
   );
+  const outputPath = path.join(processedDir, outputFileName);
+
+  console.log('Обработка файла:', normalizedPath);
+  console.log('Сохранение в:', outputPath);
 
   try {
-    const processedDir = path.join(process.cwd(), 'uploads', 'processed');
     if (!fs.existsSync(processedDir)) {
       fs.mkdirSync(processedDir, { recursive: true });
     }
 
-    const metadata = await sharp(originalPath).metadata();
+    if (!fs.existsSync(normalizedPath)) {
+      throw new Error(`Файл не найден: ${normalizedPath}`);
+    }
 
-    const watermarkText = 'EduPlatform';
-    const watermarkSvg = `
-      <svg width="${metadata.width}" height="${metadata.height}">
+    const image = sharp(normalizedPath);
+    const metadata = await image.metadata();
+
+    let newWidth = metadata.width;
+    let newHeight = metadata.height;
+
+    if (newWidth > 800) {
+      newHeight = Math.round((800 / newWidth) * newHeight);
+      newWidth = 800;
+    }
+    if (newHeight > 600) {
+      newWidth = Math.round((600 / newHeight) * newWidth);
+      newHeight = 600;
+    }
+
+    const fontSize = Math.max(newWidth, newHeight) / 12;
+    const watermarkSvg = Buffer.from(`
+      <svg width="${newWidth}" height="${newHeight}" xmlns="http://www.w3.org/2000/svg">
+        <style>
+          .watermark {
+            font-family: Arial, sans-serif;
+            font-size: ${fontSize}px;
+            fill: rgba(255, 255, 255, 0.25);
+            stroke: rgba(0, 0, 0, 0.1);
+            stroke-width: 1px;
+          }
+        </style>
         <text 
-          x="50%" 
-          y="50%" 
-          text-anchor="middle" 
-          fill="rgba(255, 255, 255, 0.3)" 
-          font-size="${Math.max(metadata.width, metadata.height) / 10}px"
-          font-family="Arial"
-          transform="rotate(-30, ${metadata.width / 2}, ${metadata.height / 2})"
-        >
-          ${watermarkText}
-        </text>
+          x="${newWidth / 2}" 
+          y="${newHeight / 2}" 
+          text-anchor="middle"
+          dominant-baseline="central"
+          transform="rotate(-30, ${newWidth / 2}, ${newHeight / 2})"
+          class="watermark"
+        >EduPlatform</text>
       </svg>
-    `;
+    `);
 
-    await sharp(originalPath)
-      .resize(800, 600, {
-        fit: 'inside',
+    await image
+      .resize(newWidth, newHeight, {
+        fit: 'fill',
         withoutEnlargement: true,
       })
+      .jpeg({ quality: 80 })
       .composite([
         {
-          input: Buffer.from(watermarkSvg),
+          input: watermarkSvg,
           top: 0,
           left: 0,
+          blend: 'over',
         },
       ])
-      .jpeg({ quality: 80 })
       .toFile(outputPath);
 
     console.log(`Изображение обработано: ${outputFileName}`);
     return outputPath;
   } catch (error) {
-    console.error(`Ошибка обработки изображения ${originalPath}:`, error);
+    console.error(`Ошибка обработки изображения ${normalizedPath}:`, error);
     throw error;
   }
 }
