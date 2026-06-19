@@ -1,98 +1,227 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# EduPlatform — Backend для платформы онлайн‑курсов
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Платформа позволяет преподавателям создавать курсы с уроками, а студентам — записываться на них и просматривать
+материалы. Загружаемые изображения (обложки курсов, иллюстрации к урокам) автоматически обрабатываются: сжимаются и
+снабжаются водяным знаком.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## Структура проекта
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
-
-```bash
-$ npm install
+```
+src/
+  services/
+    main-api/                # Nest.js сервис
+      src/
+        auth/                # JWT-авторизация, guards
+        courses/             # CRUD курсов и уроков, загрузка изображений
+        kafka/               # Producer / Consumer
+        redis/               # Модуль кэширования
+        users/               # Пользователи (Mongoose схема)
+    image-worker/            # Express.js микросервис
+      src/
+        index.js             # Подключение к Kafka, MongoDB, запуск consumer
+        processor.js         # Логика обработки (Sharp)
+  docker-compose.yml         # Инфраструктура
+  README.md
 ```
 
-## Compile and run the project
+---
+
+## Запуск проекта
+
+### Требования
+
+- Установленные **Docker** и **Docker Compose**.
+- **Node.js** (версия 18 или выше) и **npm** для запуска сервисов.
+
+### Шаг 1. Запуск инфраструктуры
+
+В корневой папке проекта выполните:
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+docker-compose up -d
 ```
 
-## Run tests
+Эта команда поднимет:
+
+- MongoDB на порту `27017`
+- Redis на порту `6379`
+- Zookeeper на порту `2181`
+- Kafka на порту `9092`
+
+### Шаг 2. Установка зависимостей и запуск сервисов
+
+#### Main API (Nest.js)
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+cd src/services/main-api
+npm install
+npm run start:dev
 ```
 
-## Deployment
+Сервер будет доступен по адресу `http://localhost:3000`.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+#### Image Worker (Express.js)
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Откройте новый терминал:
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+cd src/services/image-worker
+npm install
+node src/index.js
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+Сервис запустится на порту `3001` (проверьте статус: `GET /health`).
 
-## Resources
+> **Примечание:** убедитесь, что папки `uploads/original` и `uploads/processed` созданы (они создаются автоматически при
+> первой загрузке).
 
-Check out a few resources that may come in handy when working with NestJS:
+---
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+## Тестирование основных сценариев
 
-## Support
+Ниже приведены примеры запросов с использованием **Postman** или `curl`. Все URL относительно `http://localhost:3000`.
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+### 1. Регистрация и логин
 
-## Stay in touch
+**Регистрация (POST `/auth/register`)**  
+Тело (JSON):
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+```json
+{
+  "name": "Иван Преподаватель",
+  "email": "teacher@example.com",
+  "password": "123456",
+  "role": "teacher"
+}
+```
 
-## License
+**Логин (POST `/auth/login`)**  
+Тело (JSON):
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+```json
+{
+  "email": "teacher@example.com",
+  "password": "123456"
+}
+```
+
+В ответе придёт `access_token` — сохраните его для всех следующих запросов (заголовок `Authorization: Bearer <token>`).
+
+### 2. Создание курса (только учитель)
+
+**POST `/courses`**  
+Заголовок: `Authorization: Bearer <token>`  
+Тело:
+
+```json
+{
+  "title": "Введение в программирование",
+  "description": "Курс для начинающих"
+}
+```
+
+В ответе получите `_id` курса (далее `courseId`).
+
+### 3. Добавление урока
+
+**POST `/courses/:courseId/lessons`**  
+Заголовок: `Authorization: Bearer <token>`  
+Тело:
+
+```json
+{
+  "title": "Урок 1. Основы",
+  "content": "Материалы урока..."
+}
+```
+
+В ответе придёт `_id` урока (`lessonId`).
+
+### 4. Загрузка обложки курса
+
+**POST `/courses/:courseId/cover`**  
+Заголовок: `Authorization: Bearer <token>`  
+Тип: `form-data`, поле `image` (выберите файл изображения).
+
+После загрузки статус изображения станет `"processing"`, а в БД появится `originalUrl`. Через несколько секунд Image
+Worker обработает файл, и статус изменится на `"ready"`.
+
+### 5. Загрузка изображения урока
+
+**POST `/courses/lessons/:lessonId/image`**  
+Заголовок: `Authorization: Bearer <token>`  
+Тип: `form-data`, поле `image` (файл).
+
+Аналогично обложке, статус обновится автоматически.
+
+### 6. Просмотр курсов и проверка кэширования
+
+**GET `/courses`** — список всех курсов (кэшируется). Повторный запрос в течение 5 минут вернёт данные из Redis.  
+**GET `/courses/:courseId`** — детали курса с уроками (кэшируется).
+
+### 7. Запись студента на курс
+
+Сначала зарегистрируйте студента (роль `student`) и получите его токен.  
+**POST `/courses/:courseId/enroll`**  
+Заголовок: `Authorization: Bearer <student_token>`
+
+После успешной записи количество студентов на курсе увеличится, а курс появится в списке `enrolledCourses` у студента.
+
+### 8. Получение обработанного изображения
+
+**GET `/courses/images/:fileName`**  
+Подставьте имя файла из поля `processedUrl` (например, `processed_1234567890-image.jpg`). В ответе придёт само
+изображение.
+
+---
+
+## Проверка статуса обработки
+
+Чтобы убедиться, что изображение обработано, выполните:
+
+- **GET `/courses/:courseId`** — в поле `coverImage` статус сменится на `"ready"`.
+- **GET `/courses/:courseId/lessons`** — у каждого урока в поле `image.status` будет `"ready"`.
+
+Если статус долго остаётся `"processing"`, проверьте логи Image Worker (`docker logs eduplatform-image-worker` или
+консоль, где запущен сервис).
+
+---
+
+## Архитектура и принятые решения
+
+Проект состоит из **двух микросервисов** и набора внешних зависимостей, которые поднимаются через `docker-compose`.
+
+### Сервис 1 — Main API (Nest.js)
+
+- Отвечает за бизнес-логику: авторизация, CRUD курсов и уроков, запись студентов, загрузка изображений.
+- Использует **MongoDB** (Mongoose ODM) для хранения данных.
+- Кэширует список курсов и детальную информацию в **Redis** (TTL 5 минут).
+- При изменениях (создание, обновление, удаление курса/урока, загрузка изображения) кэш инвалидируется.
+- Отправляет задачи на обработку изображений в Kafka (топик `image.uploaded`) и подписывается на уведомления о
+  завершении (топик `image.processed`).
+
+### Сервис 2 — Image Worker (Express.js)
+
+- Отдельный микросервис, слушающий Kafka.
+- Получает задачу, сжимает изображение до 800×600 (сохраняя пропорции) с качеством 80% (JPEG) с помощью **Sharp**.
+- Накладывает полупрозрачный водяной знак "EduPlatform".
+- Сохраняет обработанный файл в папку `uploads/processed/`.
+- Обновляет статус изображения в базе данных (MongoDB) на `"ready"`.
+- Отправляет событие в Kafka (топик `image.processed`) о завершении обработки.
+
+### Инфраструктура (docker-compose)
+
+- **MongoDB** — основная БД.
+- **Redis** — кэш.
+- **Zookeeper** + **Kafka** — брокер сообщений.
+
+### Принятые решения
+
+- **Nest.js** выбран для Main API из‑за встроенной поддержки модульности, DI, Guards и удобной интеграции с Mongoose.
+- **Express.js** для Image Worker — легкий и быстрый микросервис без лишних зависимостей.
+- **MongoDB** — гибкая схема, удобная для хранения вложенных структур (изображения, уроки).
+- **Redis** — быстрый кэш, инвалидация происходит при каждом изменении данных.
+- **Kafka** — асинхронное взаимодействие гарантирует, что обработка изображений не блокирует основной API.
+- **Sharp** — производительная обработка изображений с поддержкой водяных знаков.
