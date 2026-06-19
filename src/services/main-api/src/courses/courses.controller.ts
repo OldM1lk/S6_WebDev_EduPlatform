@@ -215,7 +215,6 @@ export class CoursesController {
       lessonId,
       req.user.userId,
       file.path,
-      file.filename,
     );
 
     await this.kafkaProducer.sendImageUploaded({

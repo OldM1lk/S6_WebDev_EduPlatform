@@ -258,7 +258,6 @@ export class CoursesService {
     lessonId: string,
     userId: string,
     filePath: string,
-    fileName: string,
   ): Promise<LessonDocument> {
     const lesson = await this.lessonModel.findById(lessonId);
     if (!lesson) {
